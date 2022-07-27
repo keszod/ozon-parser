@@ -18,7 +18,7 @@ bot = Bot(token='5595919153:AAEySTo0oltSx4-vFFwsXZ4giEotChyHy6k')
 dp = Dispatcher(bot)
 
 
-def create_driver(headless=False):
+def create_driver(headless=True):
 	print('create_driver()')
 	chrome_options = webdriver.ChromeOptions()
 	if headless:
@@ -70,11 +70,11 @@ def create_driver(headless=False):
 	
 	return driver
 
+#
+#BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+#db_path = os.path.join(BASE_DIR, "db.db")
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-db_path = os.path.join(BASE_DIR, "db.db")
-
-db = SQLighter(db_path)
+#db = SQLighter(db_path)
 
 driver = create_driver()
 
