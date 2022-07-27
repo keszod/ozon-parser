@@ -4,6 +4,7 @@ import json
 import traceback
 import urllib.parse
 import os
+import pickle
 
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium import webdriver
@@ -18,7 +19,7 @@ bot = Bot(token='5595919153:AAEySTo0oltSx4-vFFwsXZ4giEotChyHy6k')
 dp = Dispatcher(bot)
 
 
-def create_driver(headless=True):
+def create_driver(headless=False):
 	print('create_driver()')
 	chrome_options = webdriver.ChromeOptions()
 	if headless:
@@ -87,10 +88,13 @@ regions = {
 @dp.message_handler()
 async def answer(message):
 	number = check_product(*message.text.split(','))
-	if number:
-		answer_message = 'Товар на '+str(number)+' месте'
-	else:
+	if number is None:
 		answer_message = 'Товар на 25+ странице'
+	elif 'реклама' in number:
+		number = number.split(' ')[1]
+		answer_message = 'Товар рекламный©,место '+number
+	else:
+		answer_message = 'Товар на '+str(number)+' месте'
 	
 	await message.answer(answer_message)
 
@@ -261,19 +265,25 @@ def get_page_driver(url):
 	print(url)
 	driver.get(url)
 	sleep(1)
+	driver.delete_all_cookies()
+	load_cookie()
+
 	return json.loads(bs(driver.page_source,'html.parser').text)
 
 def check_product(query,id_,last_page=26,region='',extra_params=''):
-	number = 1
+	number = 0
+	add_number = 0
+
 	id_ = id_.split('/?')[0].split('-')[-1]
-
+	next_page_str = ''
 	for page in range(1,last_page):
-		search_url = 'https://www.ozon.ru/api/composer-api.bx/page/json/v2?url=/search/?text='+query+'&page='+str(page)
-		json_ = get_page_driver(search_url)
+		search_url = 'https://www.ozon.ru/api/composer-api.bx/page/json/v2?url='
 		
-		json_ = json.loads(json_['widgetStates']['searchResultsV2-311178-default-1'])
-
-		items = json_['items']
+		search_param = '/search/?text='+query+'&page='+str(page) if page == 1 else next_page_str.replace('layout_container=searchMegapagination&','')
+		
+		json_ = get_page_driver(search_url+search_param)
+		 
+		items = json.loads(json_['widgetStates']['searchResultsV2-311178-default-'+str(page)])['items']
 		
 		if len(items) == 0:
 			return None
@@ -281,11 +291,36 @@ def check_product(query,id_,last_page=26,region='',extra_params=''):
 		for item in items:
 			item_id = item['action']['link'].split('/?')[0].split('-')[-1]
 			print(item_id)
+			if not 'backgroundColor' in item:
+				number += 1
+				result = number
+			else:
+				add_number += 1
+				result = 'реклама '+str(add_number)
+
 			if item_id == id_:
-				return number
-			number += 1
+				return result
+
+		next_page_str = json.loads(json_['widgetStates']['megaPaginator-311179-default-'+str(page)])['nextPage']
 	else:
 		return None
+
+
+def load_cookie(cookie='cookie'):
+	with open(cookie, 'rb') as cookiesfile:
+		cookies = pickle.load(cookiesfile)
+		for cookie in cookies:
+			driver.add_cookie(cookie)
+
+	driver.refresh()
+	return False
+
+
+def save_cookie():
+	driver.get('https://www.ozon.ru/')
+	input()
+	with open('cookie', 'wb') as filehandler:
+		pickle.dump(driver.get_cookies(), filehandler)
 
 
 def check_brand(query,id_,region):
@@ -318,3 +353,4 @@ if __name__ == '__main__':
 	#send_message('~Товар~','618939593')
 	#print(get_name('43475901'))
 	executor.start_polling(dp,skip_updates=True)
+	#save_cookie()
