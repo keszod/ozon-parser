@@ -86,14 +86,14 @@ regions = {
 
 @dp.message_handler()
 async def answer(message):
-	number = check_product(*message.text.split(','))
+	number = str(check_product(*message.text.split(',')))
 	if number is None:
 		answer_message = 'Товар на 25+ странице'
 	elif 'реклама' in number:
 		number = number.split(' ')[1]
 		answer_message = 'Товар рекламный©,место '+number
 	else:
-		answer_message = 'Товар на '+str(number)+' месте'
+		answer_message = 'Товар на '+number+' месте'
 	
 	await message.answer(answer_message)
 
