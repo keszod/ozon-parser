@@ -77,7 +77,7 @@ def create_driver(headless=True):
 
 #db = SQLighter(db_path)
 
-driver = create_driver(False)
+driver = create_driver()
 
 regions = {
 			'Москва':'&couponsGeo=12,3,18,15,21&curr=rub&dest=-1029256,-102269,-162903,-446078&emp=0&lang=ru&locale=ru&reg=0&regions=68,64,83,4,38,80,33,70,82,86,75,30,69,22,66,31,40,1,48,71&',
