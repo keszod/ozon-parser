@@ -57,8 +57,9 @@ def create_driver(headless=True):
 	  """
 })
 	driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-		
-	driver.implicitly_wait(10)
+	
+	caps["pageLoadStrategy"] = "none"
+	driver.implicitly_wait(30)
 
 	#params = {
 	#"latitude": 55.5815245,
@@ -76,7 +77,7 @@ def create_driver(headless=True):
 
 #db = SQLighter(db_path)
 
-driver = create_driver()
+driver = create_driver(False)
 
 regions = {
 			'Москва':'&couponsGeo=12,3,18,15,21&curr=rub&dest=-1029256,-102269,-162903,-446078&emp=0&lang=ru&locale=ru&reg=0&regions=68,64,83,4,38,80,33,70,82,86,75,30,69,22,66,31,40,1,48,71&',
@@ -262,8 +263,13 @@ def check_adv(query,id_):
 
 def get_page_driver(url):
 	print(url)
-	driver.get(url)
-	sleep(1)
+	while True:
+		try:
+			driver.get(url)
+			break
+		except:
+			traceback.print_exc()
+	sleep(0.6)
 	driver.delete_all_cookies()
 	load_cookie()
 
@@ -272,10 +278,13 @@ def get_page_driver(url):
 def get_category(id_):
 	search_url = 'https://www.ozon.ru/product/'+str(id_)
 	driver.get(search_url)
-
+	driver.find_element(By.XPATH,'//li[@class="e5i"]')
 	soup = bs(driver.page_source,'html.parser')
 
 	category = soup.findAll('li',class_='e5i')[-2].find('a')
+
+	if not category:
+		category = soup.findAll('li',class_='e5i')[-1].find('a')
 
 	return category.get('href')
 
