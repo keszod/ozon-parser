@@ -86,7 +86,7 @@ regions = {
 
 @dp.message_handler()
 async def answer(message):
-	number = check_product(*message.text.split(','))
+	number = check_product(message.text)
 	if number is None:
 		answer_message = 'Товар на 25+ странице'
 	elif 'реклама' in str(number):
@@ -269,20 +269,43 @@ def get_page_driver(url):
 
 	return json.loads(bs(driver.page_source,'html.parser').text)
 
-def check_product(query,id_,last_page=26,region='',extra_params=''):
+def get_category(id_):
+	search_url = 'https://www.ozon.ru/product/'+str(id_)
+	driver.get(search_url)
+
+	soup = bs(driver.page_source,'html.parser')
+
+	category = soup.findAll('li',class_='e5i')[-2].find('a')
+
+	return category.get('href')
+
+
+
+def check_product(id_,last_page=26,region='',extra_params=''):
 	number = 0
 	add_number = 0
-
 	id_ = id_.split('/?')[0].split('-')[-1]
+
+	category = get_category(id_)
+	
 	next_page_str = ''
+	
 	for page in range(1,last_page):
 		search_url = 'https://www.ozon.ru/api/composer-api.bx/page/json/v2?url='
 		
-		search_param = '/search/?text='+query+'&page='+str(page) if page == 1 else next_page_str.replace('layout_container=searchMegapagination&','')
+		search_param = category+'?page='+str(page) if page == 1 else next_page_str.replace('layout_container=searchMegapagination&','')
 		
 		json_ = get_page_driver(search_url+search_param)
 		 
-		items = json.loads(json_['widgetStates']['searchResultsV2-311178-default-'+str(page)])['items']
+		if page == 1:
+			searchresult = 'searchResultsV2-252189-default-'
+			next_page_param = json.loads(json_['widgetStates']['megaPaginator-252190-default-'+str(page)])
+		else:
+			searchresult = 'searchResultsV2-193750-categorySearchMegapagination-'
+			next_page_param = json_
+
+		
+		items = json.loads(json_['widgetStates'][searchresult+str(page)])['items']
 		
 		if len(items) == 0:
 			return None
@@ -300,7 +323,7 @@ def check_product(query,id_,last_page=26,region='',extra_params=''):
 			if item_id == id_:
 				return result
 
-		next_page_str = json.loads(json_['widgetStates']['megaPaginator-311179-default-'+str(page)])['nextPage']
+		next_page_str = next_page_param['nextPage']
 	else:
 		return None
 
@@ -353,3 +376,4 @@ if __name__ == '__main__':
 	#print(get_name('43475901'))
 	executor.start_polling(dp,skip_updates=True)
 	#save_cookie()
+	#print(check_product('323066385'))
