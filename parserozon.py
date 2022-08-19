@@ -5,6 +5,7 @@ import traceback
 import urllib.parse
 import os
 import pickle
+from sql import SQLighter
 
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium import webdriver
@@ -103,28 +104,6 @@ def save_products(products,chat_id):
 	with open(f'products/products {chat_id}.json','w',encoding='utf-8-sig') as file:
 		file.write(json.dumps(products))
 
-def start_loop():
-	print('Петля запущена')
-	BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-	db_path = os.path.join(BASE_DIR, "db.db")
-
-	db = SQLighter(db_path)
-	
-	while  True:
-		sended_message = False
-		while True:
-			hour,minute = datetime.now().strftime("%H:%M").split(':')
-			print(hour,'hour')
-			if hour == '10' and not sended_message:
-				users = db.get_users()
-
-				for user in users:		
-					start_parse(user[0])
-				sended_message = True
-			if hour == '11':
-				break
-			
-			sleep(20)
 
 def check_if_product_selling(id_,exctra):
 	search_url = f'https://card.wb.ru/cards/detail?spp=0&{exctra}pricemarginCoeff=1.0&appType=1&nm='+str(id_)
@@ -282,7 +261,7 @@ def get_category(id_):
 def start_loop():
 	print('Петля запущена')
 	BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-	db_path = os.path.join(BASE_DIR, "db.db")
+	db_path = os.path.join(BASE_DIR, "db_ozon.db")
 
 	db = SQLighter(db_path)
 	
@@ -296,7 +275,7 @@ def start_loop():
 		#				check_competitor(user[0])
 		#	except:
 		#		traceback.print_exc()
-
+			users = db.get_users()
 			hour,minute = datetime.now().strftime("%H:%M").split(':')
 			print(hour,'hour')
 			if hour == '10' and not sended_message:
