@@ -18,7 +18,7 @@ bot = Bot(token='5595919153:AAEySTo0oltSx4-vFFwsXZ4giEotChyHy6k')
 dp = Dispatcher(bot)
 
 
-def create_driver(headless=False):
+def create_driver(headless=True):
 	print('create_driver()')
 	chrome_options = webdriver.ChromeOptions()
 	if headless:
@@ -77,13 +77,7 @@ def create_driver(headless=False):
 
 #db = SQLighter(db_path)
 
-driver = create_driver(True)
-
-regions = {
-			'Москва':'&couponsGeo=12,3,18,15,21&curr=rub&dest=-1029256,-102269,-162903,-446078&emp=0&lang=ru&locale=ru&reg=0&regions=68,64,83,4,38,80,33,70,82,86,75,30,69,22,66,31,40,1,48,71&',
-			'Казань':'&regions=68,64,83,4,38,80,33,70,82,86,30,69,22,66,31,40,1,48&reg=0&emp=0&locale=ru&lang=ru&curr=rub&couponsGeo=12,7,3,6,18,22,21&dest=-1075831,-79374,-367666,-2133466&'
-}
-
+driver = create_driver()
 
 @dp.message_handler()
 async def answer(message):
@@ -145,81 +139,67 @@ def check_if_product_selling(id_,exctra):
 #@dp.message_handler()
 def start_parse(chat_id):
 	products = get_products(chat_id)
-	send_message(chat_id,'Отчёт готовится,ожидайте')
-	
+	send_message('Отчёт готовится,ожидайте',chat_id)
+	count = 0
+	text = ''
+
 	for product in products:
 		name = product['name'].split('/')[0]
 		url = product['url']
-		id_ = int(url.split('/')[4].split('/')[0])
-		text = f'<b>{name}</b>:\n\n'
-
-		for region in regions:
-			text += region+':\n\n'
-			search = []
-			for reg_search in product['search']:
-				if reg_search[1] is None or not 'Москва' in reg_search[1]:
-					search.append([reg_search[0],{'Москва':reg_search[1],'Казань':None}])
+		id_ = url.split('/?')[0].split('-')[-1]
+		count += 1
+		try:
+			number = str(check_product(url))
+			
+			if number is None:
+				answer_message = product['name']+' - товар в выдаче, на 25+ странице🔴'
+			elif 'реклама' in number:
+				number = number.split()[1]
+				if product['place'] is None or not 'реклама' in product['place']:
+					answer_message = product['name']+' - товар рекламный©,место '+number+' 🟢'
 				else:
-					search.append(reg_search)
+					diff = str(int(product['place'].split()[1])-int(number))
+					end = '🟢' if int(diff) >= 0 else '🔴'
+					diff = '+'+diff if int(diff) >= 0 else diff
+
+					answer_message = product['name']+' - товар рекламный©,место '+number+'('+diff+') '+end
 			
-			product['search'] = search
-
-			if check_if_product_selling(id_,regions[region]):
-				count = 0		
-				for search in product['search']:
-					count += 1
-					name_search = search[0].strip()
-					print(name_search)
-					try:
-						number = check_position(name_search,url,regions[region])
-						
-						if number is None:
-							answer_message = name_search+' - товар в выдаче, на 25+ странице🔴'
-						elif 'реклама' in number:
-							number = number.split()[1]
-							if search[1][region] is None or not 'реклама' in search[1][region]:
-								answer_message = name_search+' - товар рекламный©,место '+number+' 🟢'
-							else:
-								diff = str(int(search[1][region].split()[1])-int(number))
-								end = '🟢' if int(diff) >= 0 else '🔴'
-								diff = '+'+diff if int(diff) >= 0 else diff
-
-								answer_message = name_search+' - товар рекламный©,место '+number+'('+diff+') '+end
-						
-						elif 'нет' in number:
-							answer_message = '<del>'+name_search+'</del>'+' - товар отсутствует в выдаче 🔴'
-						
-						else:
-							if not search[1][region] or not search[1][region].isnumeric():
-								answer_message = name_search+' - место '+number+' 🟢'
-							else:
-								diff = str(int(search[1][region])-int(number))
-								end = '🟢' if int(diff) >= 0 else '🔴'
-								diff = '+'+diff if int(diff) >= 0 else diff
-
-								answer_message = name_search+' - место '+number+'('+diff+') '+end
-					
-						
-						search[1][region] = number
-						save_products(products,chat_id)
-					except:
-						traceback.print_exc()
-						answer_message = name_search+' - произошла ошибка⚠️'
-
-					text += str(count)+'. '+answer_message+'\n'
+			elif 'нет' in number:
+				answer_message = '<del>'+product['name']+'</del>'+' - товар отсутствует в выдаче 🔴'
 			
-				text += '\n'
 			else:
-				text += f'-Нет в наличии\n\n'
+				if not product['place'] or not product['place'].isnumeric():
+					answer_message = product['name']+' - место '+number+' 🟢'
+				else:
+					diff = str(int(product['place'])-int(number))
+					end = '🟢' if int(diff) >= 0 else '🔴'
+					diff = '+'+diff if int(diff) >= 0 else diff
+
+					answer_message = product['name']+' - место '+number+'('+diff+') '+end
 		
-		send_message(text,chat_id)
+			
+			product['place'] = number
+			save_products(products,chat_id)
+		except:
+			traceback.print_exc()
+			answer_message = product['name']+' - произошла ошибка⚠️'
+
+		text += str(count)+'. '+answer_message+'\n'
+
+		text += '\n'
+			
+	send_message(text,chat_id)
 
 
 def send_message(message,chat_id):
-	telegram_api = 'https://api.telegram.org/bot5490688808:AAE9EVs8TSxndZt7FDAo7JyjwVIftI6DkH4/'
+	telegram_api = 'https://api.telegram.org/bot5595919153:AAEySTo0oltSx4-vFFwsXZ4giEotChyHy6k/'
 	chat_id = chat_id
 	message = urllib.parse.quote_plus(message)
-	url = telegram_api + 'sendMessage?chat_id='+chat_id+'&text='+message+'&parse_mode=html'
+	keyboard = [['Получить отчёт'],['Добавить товар'],['Удалить товар']]
+	keyboard = {'keyboard':keyboard,'resize_keyboard':False}
+	
+	url = telegram_api + 'sendMessage?chat_id='+chat_id+'&text='+message+'&parse_mode=html&reply_markup='+json.dumps(keyboard)
+	
 	requests.get(url)
 
 def get_page(url):
@@ -269,12 +249,14 @@ def get_page_driver(url):
 			break
 		except:
 			traceback.print_exc()
-	sleep(1)
-	data = bs(driver.page_source,'html.parser').find('body')
-	driver.delete_all_cookies()
+	sleep(0.2)
 	load_cookie()
-	test(data.text,'test.html')
-	return json.loads(data.text)
+	sleep(1)
+
+	data = driver.find_element(By.XPATH,"/html/body").text
+	test(data,'test.html')
+	#driver.delete_all_cookies()
+	return json.loads(data)
 
 def get_category(id_):
 	search_url = 'https://www.ozon.ru/product/'+str(id_)
@@ -294,6 +276,37 @@ def get_category(id_):
 		category = full_category[-1].find('a')
 
 	return category.get('href')
+
+
+
+def start_loop():
+	print('Петля запущена')
+	BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+	db_path = os.path.join(BASE_DIR, "db.db")
+
+	db = SQLighter(db_path)
+	
+	while  True:
+		sended_message = False
+		while True:
+		#	try:
+		#		users = db.get_users()
+		#		for user in users:
+		#			if os.path.exists('products/products_competive '+user[0]+'.json'):
+		#				check_competitor(user[0])
+		#	except:
+		#		traceback.print_exc()
+
+			hour,minute = datetime.now().strftime("%H:%M").split(':')
+			print(hour,'hour')
+			if hour == '10' and not sended_message:
+				for user in users:		
+					start_parse(user[0])
+				sended_message = True
+			if hour == '11':
+				break
+			
+			sleep(3)
 
 
 
@@ -359,31 +372,6 @@ def save_cookie():
 	input()
 	with open('cookie', 'wb') as filehandler:
 		pickle.dump(driver.get_cookies(), filehandler)
-
-
-def check_brand(query,id_,region):
-	search_url = f'https://wbx-content-v2.wbstatic.net/ru/{id_}.json'
-	brand_id = get_page(search_url)['data']['brand_id']
-	extra = f'&fbrand={brand_id}'
-
-	return check_product(query,id_,10000,region,extra)
-	
-def check_position(query,url,region):
-	id_ = int(url.split('/')[4].split('/')[0])
-	adv = check_adv(query,id_)
-	if  adv:
-		print('Товар найден среди рекламы')
-		return 'реклама '+str(adv)
-	
-	print('Товар не рекламный')
-	
-	if not check_brand(query,id_,region):
-		print('Товар отсутствует')
-		return 'нет'
-
-	print('Товар найден в сортировки по бренду')
-
-	return check_product(query,id_,region=region)
 
 if __name__ == '__main__':
 	#start_parse('618939593')
