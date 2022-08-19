@@ -66,7 +66,7 @@ async def answer(message):
 		elif text == 'Добавить товар':
 			db.update_status(chat_id,'add_product_url')
 			answer = 'Пришлите ссылку на товар'
-		elif text == 'Удалить':
+		elif text == 'Удалить товар':
 			if len(products) > 0:
 				list_text = ''
 				for i in range(len(products)):
