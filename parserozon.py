@@ -18,7 +18,7 @@ bot = Bot(token='5595919153:AAEySTo0oltSx4-vFFwsXZ4giEotChyHy6k')
 dp = Dispatcher(bot)
 
 
-def create_driver(headless=True):
+def create_driver(headless=False):
 	print('create_driver()')
 	chrome_options = webdriver.ChromeOptions()
 	if headless:
@@ -45,7 +45,7 @@ def create_driver(headless=True):
 	
 	caps = DesiredCapabilities().CHROME
 
-	#caps["pageLoadStrategy"] = "none"	
+	caps["pageLoadStrategy"] = "none"	
 	
 	driver = webdriver.Chrome(desired_capabilities=caps,chrome_options=chrome_options)	
 
@@ -77,7 +77,7 @@ def create_driver(headless=True):
 
 #db = SQLighter(db_path)
 
-driver = create_driver()
+driver = create_driver(True)
 
 regions = {
 			'Москва':'&couponsGeo=12,3,18,15,21&curr=rub&dest=-1029256,-102269,-162903,-446078&emp=0&lang=ru&locale=ru&reg=0&regions=68,64,83,4,38,80,33,70,82,86,75,30,69,22,66,31,40,1,48,71&',
@@ -269,22 +269,29 @@ def get_page_driver(url):
 			break
 		except:
 			traceback.print_exc()
-	sleep(0.6)
+	sleep(1)
+	data = bs(driver.page_source,'html.parser').find('body')
 	driver.delete_all_cookies()
 	load_cookie()
-
-	return json.loads(bs(driver.page_source,'html.parser').text)
+	test(data.text,'test.html')
+	return json.loads(data.text)
 
 def get_category(id_):
 	search_url = 'https://www.ozon.ru/product/'+str(id_)
 	driver.get(search_url)
-	driver.find_element(By.XPATH,'//li[@class="e5i"]')
+	driver.find_element(By.XPATH,'//ol[@class="e5i"]')
 	soup = bs(driver.page_source,'html.parser')
 
-	category = soup.findAll('li',class_='e5i')[-2].find('a')
+	category = soup.findAll('li',class_='e5i')
+
+	if category == []:
+		category = soup.findAll('li',class_='ie5')
+
+	full_category = category
+	category = category[-2].find('a')
 
 	if not category:
-		category = soup.findAll('li',class_='e5i')[-1].find('a')
+		category = full_category[-1].find('a')
 
 	return category.get('href')
 
